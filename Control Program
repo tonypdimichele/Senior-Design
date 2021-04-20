@@ -1,0 +1,63 @@
+    //
+    
+    #include <Stepper.h>
+    #include <AltSoftSerial.h>
+
+      AltSoftSerial BTserial; 
+      Stepper stepper(200, 4, 5, 6, 7);
+      int step_parameter = 0;
+      int step_parameter_new = 0;
+      int actuation = 0;
+      int light_data_int;
+      int light_set_point = 250;
+      int steps = 10 ;
+      String light_data = " ";
+         
+    void setup()
+    {
+      Serial.begin(9600);
+      Serial.println("Stepper test!");
+      stepper.setSpeed(30); // set the speed of the motor (RPM)
+      BTserial.begin(9600);  
+      Serial.println("BTserial started at 9600");
+      delay(2000);
+    }
+     
+    void loop()
+    { 
+     Serial.println("Please enter a number between 0-160");
+//      while (Serial.available() == 0 ){
+//        //wait for user data to be put in.
+//      }
+//      step_parameter_new = Serial.parseInt();
+
+       
+     light_data = BTserial.readString();
+     Serial.println(light_data);
+     light_data_int = light_data.toInt();
+     Serial.println(light_data_int);
+
+     if((light_data_int < light_set_point) && (light_set_point-light_data_int > 10)){
+        stepper.step(steps);
+        Serial.println("Actuating up!!");
+//        delay(2000);
+     }
+     else if(light_data_int > light_set_point  && (light_set_point-light_data_int < -10)){
+      Serial.println("Actuating down!!");
+        stepper.step(-steps);
+//        delay(2000);
+     }
+     else if(light_set_point-light_data_int >= 10 || light_set_point-light_data_int <= -10){
+        Serial.println("Not Actuating!!");
+//        delay(2000);
+     }
+     
+           
+      while(BTserial.available())
+      Serial.read();
+   }
+
+////range of light_data is 30 - 9000
+////int light_data = Serial.read(LUX);
+////int steps_parameter = f(light_data);
+////#define STEPS steps_parameter
