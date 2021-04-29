@@ -1,0 +1,64 @@
+//  This code will serve as the controller 
+// arduino code. It will recieve the light 
+// sensor data from the Sensor arduino.
+
+#include "Adafruit_VEML7700.h"
+#include <AltSoftSerial.h>
+AltSoftSerial BTserial; 
+// https://www.pjrc.com/teensy/td_libs_AltSoftSerial.html
+Adafruit_VEML7700 veml = Adafruit_VEML7700();
+
+String a = " ";
+char c = ' ';
+boolean NL = true;
+char reply[30];
+int pos;
+ 
+void setup() 
+{
+    Serial.begin(9600);
+    Serial.print("Sketch:   ");   Serial.println(__FILE__);
+    Serial.print("Uploaded: ");   Serial.println(__DATE__);
+    Serial.println(" ");
+
+    // Starting bluetooth serial
+    BTserial.begin(9600);  
+    Serial.println("BTserial started at 9600");
+
+    veml.begin();
+    veml.setGain(VEML7700_GAIN_1);
+    veml.setIntegrationTime(VEML7700_IT_800MS);
+
+}
+ 
+void loop()
+{
+    // Read light sensor data and send to write to bluetooth
+
+        pos = veml.readLux();
+        Serial.println(pos);
+        BTserial.print(pos);
+        delay(2000);
+      
+    
+    
+ 
+ 
+//    // Read from the Serial Monitor and send to the Bluetooth module
+//    if (Serial.available())
+//    {
+//        c = Serial.read();
+// 
+//        // do not send line end characters to the HM-10
+//        if (c!=10 & c!=13 ) 
+//        {  
+//             BTserial.write(c);
+//        }
+// 
+//        // Echo the user input to the main window. 
+//        // If there is a new line print the ">" character.
+//        if (NL) { Serial.print("\r\n>");  NL = false; }
+//        Serial.write(c);
+//        if (c==10) { NL = true; }
+//    }
+}
