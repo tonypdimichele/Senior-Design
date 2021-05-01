@@ -1,7 +1,10 @@
-        //
+ //
     
     #include <Stepper.h>
     #include <AltSoftSerial.h>
+    #include <avr/sleep.h> //this AVR library contains the methods that controls the sleep modes
+    
+    #define interruptPin 2 //Pin we are going to use to wake up the Arduino
 
       AltSoftSerial BTserial; 
       Stepper stepper(200, 4, 5, 6, 7);
@@ -14,6 +17,7 @@
       String light_data = " ";
       bool sleep_parameter = 0;
       String inByte;
+      bool program_state = 0;
          
     void setup()
     {
@@ -23,38 +27,78 @@
       BTserial.begin(9600);  
       Serial.println("BTserial started at 9600");
       delay(2000);
+
+      // Interupt Pin Set-up
+      pinMode(interruptPin,INPUT_PULLUP);//Set pin d2 to input using the buildin pullup resistor
     }
      
     void loop()
     {
-//     //Recieve Data 
-//       inByte = (Serial.readString());
-//       Serial.print("inByte "); Serial.println(inByte);
+      if(program_state == 1){
 
-     // This will read the serial data coming from the light sensor and convert it into an integer
-       light_data = BTserial.readString();
-       Serial.println(light_data);  //debugging, comment out when working
-       light_data_int = light_data.toInt();
-       Serial.println(light_data_int);  //debugging, comment out when working
-       
-    // Clockwise Motor Actuation 
-       if((light_data_int < light_set_point) && (light_set_point-light_data_int > 10)){
-          stepper.step(steps);
-          Serial.println("Actuating up!!");
-       }
-       
-    //  Counterclockwise Actuation
-       else if(light_data_int > light_set_point  && (light_set_point-light_data_int < -10)){
-          Serial.println("Actuating down!!"); //debugging, comment out when working
-          stepper.step(-steps);
-     }
+          // Attach Switch Interupt
+            attachInterrupt(digitalPinToInterrupt(interruptPin), changeState, RISING);
 
-     // DO NOT ACUTATE MOTOR
-     else if(light_set_point-light_data_int >= 10 || light_set_point-light_data_int <= -10){
-        Serial.println("Not Actuating!!");  // debugging, comment out when working
-     }
+          //Recieve Data From App
+            inByte = (Serial.readString());
+            Serial.print("inByte "); Serial.println(inByte);
+
+          // This will read the serial data coming from the light sensor and convert it into an integer
+            light_data = BTserial.readString();
+            Serial.println(light_data);  //debugging, comment out when working
+            light_data_int = light_data.toInt();
+            Serial.println(light_data_int);  //debugging, comment out when working
+       
+          // Clockwise Motor Actuation 
+            if((light_data_int < light_set_point) && (light_set_point-light_data_int > 10)){
+              stepper.step(steps);
+              Serial.println("Actuating up!!");
+            }
+       
+          // Counterclockwise Actuation
+            else if(light_data_int > light_set_point  && (light_set_point-light_data_int < -10)){
+              Serial.println("Actuating down!!"); //debugging, comment out when working
+              stepper.step(-steps);
+            }
+
+          // DO NOT ACUTATE MOTOR
+            else if(light_set_point-light_data_int >= 10 || light_set_point-light_data_int <= -10){
+              Serial.println("Not Actuating!!");  // debugging, comment out when working
+            }
      
-      // reset the serial port     
-         while(BTserial.available())
-         Serial.read();
-   }
+          // reset the serial port     
+            while(BTserial.available())
+            Serial.read();
+              
+      }
+
+      if(program_state == 0){
+
+          sleep_enable();//Enabling sleep mode
+          attachInterrupt(digitalPinToInterrupt(interruptPin), changeState, RISING);
+          set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+          sleep_cpu(); 
+          Serial.println("just woke up!");
+      }    
+    }
+
+    void changeState(){
+
+      Serial.println("Interrrupt Fired");    
+
+      if(program_state == 0){
+         //Open flap
+         Serial.println("Opening Flap");        
+      }
+
+      else {
+         //Close Flap
+         Serial.println("CLosing Flap");  
+      }
+
+      program_state = !program_state;
+      Serial.println(program_state);
+      sleep_disable();
+      detachInterrupt(0);
+    }
+    
