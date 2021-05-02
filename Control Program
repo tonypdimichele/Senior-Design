@@ -45,10 +45,12 @@
           //Recieve Data From App
             inByte = (Serial.readString());
             Serial.println("inByte "); Serial.print(inByte);
+            if(inByte != NULL) {
             light_set_point = (inByte.toInt());
-            Serial.println("light_set_point "); Serial.print(light_set_point);
+            Serial.print("light_set_point "); Serial.println(light_set_point);
             delay(50);
-
+            }
+            
           // This will read the serial data coming from the light sensor and convert it into an integer
             light_data = BTserial.readString();
             Serial.println(light_data);  //debugging, comment out when working
