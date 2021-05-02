@@ -1,4 +1,4 @@
- //
+//
     
     #include <Stepper.h>
     #include <AltSoftSerial.h>
@@ -7,7 +7,8 @@
     #define interruptPin 2 //Pin we are going to use to wake up the Arduino
 
       AltSoftSerial BTserial; 
-      Stepper stepper(200, 4, 5, 6, 7);
+      Stepper stepper1(200, 4, 5, 6, 7);
+      Stepper stepper2(200, 10, 11, 12, 13);
       int step_parameter = 0;
       int step_parameter_new = 0;
       int actuation = 0;
@@ -18,12 +19,14 @@
       bool sleep_parameter = 0;
       String inByte;
       bool program_state = 0;
-         
+      int flap = 50;   
     void setup()
     {
       Serial.begin(9600);
       Serial.println("Stepper test!");
-      stepper.setSpeed(30); // set the speed of the motor (RPM)
+      stepper1.setSpeed(30); // set the speed of the motor (RPM)
+      stepper2.setSpeed(10);
+      stepper2.step(flap);
       BTserial.begin(9600);  
       Serial.println("BTserial started at 9600");
       delay(2000);
@@ -41,7 +44,10 @@
 
           //Recieve Data From App
             inByte = (Serial.readString());
-            Serial.print("inByte "); Serial.println(inByte);
+            Serial.println("inByte "); Serial.print(inByte);
+            light_set_point = (inByte.toInt());
+            Serial.println("light_set_point "); Serial.print(light_set_point);
+            delay(50);
 
           // This will read the serial data coming from the light sensor and convert it into an integer
             light_data = BTserial.readString();
@@ -51,14 +57,14 @@
        
           // Clockwise Motor Actuation 
             if((light_data_int < light_set_point) && (light_set_point-light_data_int > 10)){
-              stepper.step(steps);
+              stepper1.step(steps);
               Serial.println("Actuating up!!");
             }
        
           // Counterclockwise Actuation
             else if(light_data_int > light_set_point  && (light_set_point-light_data_int < -10)){
               Serial.println("Actuating down!!"); //debugging, comment out when working
-              stepper.step(-steps);
+              stepper1.step(-steps);
             }
 
           // DO NOT ACUTATE MOTOR
@@ -67,18 +73,22 @@
             }
      
           // reset the serial port     
-            while(BTserial.available())
+            while(Serial.read() >= 0);
             Serial.read();
-              
+
+          // reset Bluetooth serial
+            while(BTserial.read() >= 0);
+            BTserial.read();
       }
 
       if(program_state == 0){
-
+          stepper2.step(-flap);
           sleep_enable();//Enabling sleep mode
           attachInterrupt(digitalPinToInterrupt(interruptPin), changeState, RISING);
           set_sleep_mode(SLEEP_MODE_PWR_DOWN);
           sleep_cpu(); 
           Serial.println("just woke up!");
+          stepper2.step(flap);
       }    
     }
 
@@ -86,19 +96,18 @@
 
       Serial.println("Interrrupt Fired");    
 
-      if(program_state == 0){
-         //Open flap
-         Serial.println("Opening Flap");        
-      }
-
-      else {
-         //Close Flap
-         Serial.println("CLosing Flap");  
-      }
+//      if(program_state == 0){
+//         //Open flap
+//         Serial.println("Opening Flap");        
+//      }
+//
+//      else {
+//         //Close Flap
+//         Serial.println("CLosing Flap");  
+//      }
 
       program_state = !program_state;
       Serial.println(program_state);
       sleep_disable();
       detachInterrupt(0);
     }
-    
