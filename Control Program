@@ -5,7 +5,7 @@
     #include <avr/sleep.h> //this AVR library contains the methods that controls the sleep modes
     
     #define interruptPin 2 //Pin we are going to use to wake up the Arduino
-
+      
       AltSoftSerial BTserial; 
       Stepper stepper1(200, 4, 5, 6, 7);
       Stepper stepper2(200, 10, 11, 12, 13);
@@ -17,9 +17,13 @@
       int steps = 10 ;
       String light_data = " ";
       bool sleep_parameter = 0;
+      bool doOnce = 0; 
       String inByte;
-      bool program_state = 1;
-      int flap = 50;   
+      bool program_state = 0;
+      int flap = 50;  
+      char array_in[8];
+      const char delim[2] = ";";
+      char *ptr = NULL;
     
     void setup()
     {
@@ -32,9 +36,10 @@
         digitalWrite(11,LOW);
         digitalWrite(12,LOW);
         digitalWrite(13,LOW);
-      BTserial.begin(9600);  
+      BTserial.begin(9600);
       Serial.println("BTserial started at 9600");
       delay(2000);
+      Serial.flush();
 
       // Interupt Pin Set-up
       pinMode(interruptPin,INPUT_PULLUP);//Set pin d2 to input using the buildin pullup resistor
@@ -43,54 +48,70 @@
     void loop()
     {
       if(program_state == 0){
-
+            if(doOnce == 1){
+              stepper2.step(flap);
+              doOnce = 0; 
+              Serial.println("MOTORSSSSSSS 0");
+            }
+            
            //Attach Switch Interupt
-            attachInterrupt(digitalPinToInterrupt(interruptPin), changeState, RISING);
+           attachInterrupt(digitalPinToInterrupt(interruptPin), changeState, RISING);
 
           //Recieve Data From App
-            inByte = (Serial.readString());
-            Serial.println("inByte "); Serial.print(inByte);
-            if(inByte != NULL) {
-            light_set_point = (inByte.toInt());
-            Serial.print("light_set_point "); Serial.println(light_set_point);
-            delay(50);
-            }
+            inByte =  Serial.readString();
+              Serial.println("inByte "); //Serial.print(inByte);
+              if(inByte != NULL) {
+                if(inByte == "off"){
+                  Serial.println(inByte);
+                  changeState();
+                }
+                else{
+                  Serial.println(inByte);
+                }
+              }
+           
+//            light_set_point = (inByte.toInt());
+//            Serial.print("light_set_point "); Serial.println(light_set_point);
+           // delay(50);
+            
+            
+            
+
+
             
           // This will read the serial data coming from the light sensor and convert it into an integer
             light_data = BTserial.readString();
-            Serial.println(light_data);  //debugging, comment out when working
+            Serial.print("Light Data: ");  //debugging, comment out when working
+            Serial.println(light_data);
             light_data_int = light_data.toInt();
-            Serial.println(light_data_int);  //debugging, comment out when working
-       
+            //Serial.prinntln(light_data_int);  //debugging, comment out when working
           // Clockwise Motor Actuation 
-            if((light_data_int < light_set_point) && (light_set_point-light_data_int > 10) && (step_position < 160)){
+            if((light_data_int < light_set_point) && (light_set_point-light_data_int > 10) && (step_position < 170)){
               stepper1.step(steps);
               step_position = step_position + 10;
-              Serial.print("Actuating up!! Step Position = ");
-              Serial.println(step_position);
+//              Serial.print("Actuating up!! Step Position = ");
+//              Serial.println(step_position);
             }
        
           // Counterclockwise Actuation
             else if(light_data_int > light_set_point  && (light_set_point-light_data_int < -10) && (step_position > 0)){
               stepper1.step(-steps);
               step_position = step_position - 10;
-              Serial.print("Actuating down!! Step Position = ");
-              Serial.println(step_position);
+//              Serial.print("Actuating down!! Step Position = ");
+//              Serial.println(step_position);
             }
 
           // DO NOT ACUTATE MOTOR
             else if(light_set_point-light_data_int >= 10 || light_set_point-light_data_int <= -10){
-              Serial.println("Not Actuating!!");  // debugging, comment out when working
+              //Serial.println("Not Actuating!!");  // debugging, comment out when working
             }
 
-              digitalWrite(4,LOW);
-              digitalWrite(5,LOW);
-              digitalWrite(6,LOW);
-              digitalWrite(7,LOW);
-     
-          // reset the serial port     
-            while(Serial.read() >= 0);
-            Serial.read();
+              motorsOff();
+            Serial.print("Step Position: ");  //debugging, comment out when working
+            Serial.println(step_position);
+//          // reset the serial port     
+//            while(Serial.read() >= 0);
+//            Serial.read();
 
           // reset Bluetooth serial
             while(BTserial.read() >= 0);
@@ -98,28 +119,35 @@
       }
 
       if(program_state == 1){
+          if(doOnce == 0){
           stepper2.step(-flap);
           stepper1.step(-step_position);
           step_position = 0;
             //turn motors off
           motorsOff();
-          sleep_enable();//Enabling sleep mode
+          Serial.println("MOTORSSSSSSS 1");
+          doOnce = 1; 
+          }
+          //sleep_enable();//Enabling sleep mode
           attachInterrupt(digitalPinToInterrupt(interruptPin), changeState, RISING);
-          set_sleep_mode(SLEEP_MODE_PWR_DOWN);
-          sleep_cpu(); 
-          Serial.println("just woke up!");
-          stepper2.step(flap);
-            digitalWrite(10,LOW);
-            digitalWrite(11,LOW);
-            digitalWrite(12,LOW);
-            digitalWrite(13,LOW);
+          inByte =  Serial.readString();
+              Serial.println("inByte "); //Serial.print(inByte);
+              if(inByte != NULL) {
+                if(inByte == "on"){
+                  Serial.println(inByte);
+                  changeState();
+                }
+              }
+          //set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+          //sleep_cpu(); 
+          //stepper2.step(flap);
       }    
     }
 
     void changeState(){
       Serial.println("Interrrupt Fired");    
       program_state = !program_state;
-      Serial.println(program_state);
+      //Serial.println(program_state);
       sleep_disable();
       detachInterrupt(0);
     }
@@ -134,3 +162,6 @@
             digitalWrite(6,LOW);
             digitalWrite(7,LOW);
     }
+
+  
+  
